@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "prime-radiant": {
+      "url": "${PRIME_RADIANT_URL}/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer ${PRIME_RADIANT_TOKEN}"
+      }
+    }
+  }
+}

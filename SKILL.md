@@ -1,12 +1,12 @@
 ---
 name: prime-radiant
-description: Personal knowledge vault — search, read, write, and organize notes with semantic search, wikilink graphs, and structured metadata.
+description: Personal knowledge vault — search, read, and organize notes with semantic search, wikilink graphs, and structured metadata. Writes via Obsidian CLI, reads via Cloudflare Worker MCP.
 user-invocable: true
 metadata:
   {
     "openclaw": {
       "emoji": "🔮",
-      "requires": { "bins": ["mcporter"], "env": ["PRIME_RADIANT_URL", "PRIME_RADIANT_TOKEN"] },
+      "requires": { "bins": ["mcporter", "obsidian"], "env": ["PRIME_RADIANT_URL", "PRIME_RADIANT_TOKEN"] },
       "primaryEnv": "PRIME_RADIANT_TOKEN"
     }
   }
@@ -14,24 +14,66 @@ metadata:
 
 # Prime Radiant
 
-You have access to the user's personal knowledge vault via MCP tools prefixed `prime-radiant.*`. Use it to persist and retrieve information across conversations.
+You have access to the user's personal knowledge vault. Use it to persist and retrieve information across conversations.
 
-The vault is a Cloudflare Worker backed by D1 (full-text search), R2 (file storage), and Vectorize (semantic embeddings). All notes are markdown with YAML frontmatter.
+## Architecture
 
-## Tools
+```
+Agent writes via Obsidian CLI
+        │
+        ▼
+  Local Vault (~/prime-radiant/)  ← source of truth (Obsidian, markdown + YAML frontmatter)
+        │
+        │  cron sync every 5 min
+        ▼
+  Cloudflare Worker (read-only MCP)
+    ├─ D1  — note metadata, tags, links, FTS5 full-text search
+    ├─ R2  — raw markdown file storage
+    ├─ Vectorize — 384-dim vector embeddings for semantic search
+    └─ Workers AI — generates embeddings on sync
+```
+
+**Writes** go through the **Obsidian CLI** → local vault. A cron syncs to the Worker for indexing.
+**Reads** go through the **Worker MCP** (`prime-radiant.*` tools) for search, graph, and filtering.
+
+## Read Tools (Worker MCP)
 
 | Tool | Purpose |
 |------|---------|
 | `prime-radiant.vault_search` | Search notes — `mode`: hybrid (default), keyword, semantic |
 | `prime-radiant.vault_read` | Read full note by path |
-| `prime-radiant.vault_write` | Create or update a note (full markdown + YAML frontmatter) |
-| `prime-radiant.vault_append` | Append content to an existing note |
-| `prime-radiant.vault_delete` | Delete a note |
 | `prime-radiant.vault_list` | List notes — filter by `type`, `status`, `tag` |
 | `prime-radiant.vault_graph` | Wikilink connection graph — local (with `path`) or full vault |
 | `prime-radiant.vault_tags` | All tags with usage counts |
 | `prime-radiant.vault_backlinks` | Notes that link to a given note |
 | `prime-radiant.vault_stats` | Vault metrics (note count, tag count, link count, type distribution) |
+
+## Write Commands (Obsidian CLI)
+
+All writes go through the Obsidian CLI. Never write directly to the Worker.
+
+```bash
+# Create a new note
+obsidian vault="Prime Radiant" create name="<folder/title>" content="<full markdown with frontmatter>"
+
+# Append to an existing note
+obsidian vault="Prime Radiant" append file="<title>" content="<content to append>"
+
+# Append to today's daily note
+obsidian vault="Prime Radiant" daily:append content="<content>"
+
+# Set/update a frontmatter property
+obsidian vault="Prime Radiant" property:set file="<title>" name="<key>" value="<value>"
+
+# Move/rename a note
+obsidian vault="Prime Radiant" move file="<title>" to="<new-folder/new-title>"
+
+# Delete a note
+obsidian vault="Prime Radiant" trash file="<title>"
+
+# Search locally (for pre-write duplicate check)
+obsidian vault="Prime Radiant" search query="<term>" format=json
+```
 
 ## When to Use the Vault
 
@@ -190,18 +232,14 @@ Don't duplicate frontmatter fields as tags (no `#person` tag when `type: person`
 
 ## Appending to Notes
 
-For daily logs, interaction records, or evolving notes:
-```
-prime-radiant.vault_append path="01-daily/2026-03-14.md" content="
-- 3pm: met with Sarah about project timeline
-- decided to push launch to April"
+For daily logs:
+```bash
+obsidian vault="Prime Radiant" daily:append content="- 3pm: met with Sarah about project timeline\n- decided to push launch to April"
 ```
 
 For person notes, append to the relevant section:
-```
-prime-radiant.vault_append path="06-people/Sarah Chen.md" content="
-## Interactions
-- 2026-03-14: discussed project timeline, she prefers async standups"
+```bash
+obsidian vault="Prime Radiant" append file="Sarah Chen" content="\n## Interactions\n- 2026-03-14: discussed project timeline, she prefers async standups"
 ```
 
 ## Output Guidelines
@@ -218,21 +256,21 @@ When returning vault information to the user:
 
 ### User says: "I just had coffee with Jake, he's switching to a new startup"
 
-1. Search: `vault_search query="Jake"` — check for existing person note
-2. If found: `vault_append` to Jake's person note with the update
-3. If not: `vault_write` a new person note at `06-people/Jake.md`
-4. Append to today's daily note: interaction log entry
+1. Search: `prime-radiant.vault_search query="Jake"` — check for existing person note
+2. If found: `obsidian vault="Prime Radiant" append file="Jake" content="..."` with the update
+3. If not: `obsidian vault="Prime Radiant" create name="06-people/Jake" content="..."` — new person note
+4. Append to daily: `obsidian vault="Prime Radiant" daily:append content="- coffee with Jake, he's joining a new startup"`
 
 ### User asks: "What do I know about productivity systems?"
 
-1. Search: `vault_search query="productivity systems" mode=semantic`
-2. Read top results: `vault_read` the most relevant 2-3 notes
-3. Follow graph: `vault_graph` on the most connected result
+1. Search: `prime-radiant.vault_search query="productivity systems" mode=semantic`
+2. Read top results: `prime-radiant.vault_read` the most relevant 2-3 notes
+3. Follow graph: `prime-radiant.vault_graph` on the most connected result
 4. Synthesize: combine information across notes, cite sources
 
 ### User shares: "I've been thinking about switching from coffee to matcha"
 
-1. Search: `vault_search query="coffee matcha beverage preferences"`
-2. If preference note exists: update it
-3. If not: create `02-notes/Beverage Preferences.md` with `type: preference`
+1. Search: `prime-radiant.vault_search query="coffee matcha beverage preferences"`
+2. If preference note exists: `obsidian vault="Prime Radiant" append file="Beverage Preferences" content="..."`
+3. If not: `obsidian vault="Prime Radiant" create name="02-notes/Beverage Preferences" content="..."` with `type: preference`
 4. Link to any existing habit notes about morning routine

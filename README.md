@@ -2,11 +2,14 @@
 
 Agent skill for [Prime Radiant](https://github.com/tannerwj/prime-radiant) — a personal knowledge vault with semantic search, wikilink graphs, and structured metadata.
 
-Teaches any agent how to search, read, write, and organize notes in your vault. Works with any agent platform that supports [AgentSkills](https://agent-skills.md) (OpenClaw, Claude Code, etc.).
+Teaches any agent how to read, search, and write notes in your vault. Reads go through the Cloudflare Worker MCP (search, embeddings, graph). Writes go through the Obsidian CLI to keep the local vault as source of truth.
+
+Works with any agent platform that supports [AgentSkills](https://agent-skills.md) (OpenClaw, Claude Code, etc.).
 
 ## Prerequisites
 
-- A deployed [Prime Radiant worker](https://github.com/tannerwj/prime-radiant/tree/master/worker)
+- [Obsidian](https://obsidian.md) with the Prime Radiant vault open (for CLI writes)
+- A deployed [Prime Radiant worker](https://github.com/tannerwj/prime-radiant/tree/master/worker) (for MCP reads/search)
 - [mcporter](https://mcporter.dev) installed (`npm install -g mcporter`)
 
 ## Setup
@@ -55,24 +58,23 @@ Include the contents of `SKILL.md` in your agent's system prompt or skill config
 
 ## What the agent gets
 
-**10 vault tools** via mcporter MCP:
+**7 read-only MCP tools** via mcporter (Cloudflare Worker):
 
 | Tool | Purpose |
 |------|---------|
-| `vault_search` | Hybrid, keyword, or semantic search |
-| `vault_read` | Read full note content |
-| `vault_write` | Create or update note (markdown + frontmatter) |
-| `vault_append` | Append to existing note |
-| `vault_delete` | Delete note |
-| `vault_list` | Filter by type, status, tag |
-| `vault_graph` | Wikilink traversal (local or full) |
+| `vault_search` | Hybrid, keyword, or semantic search (D1 FTS5 + Vectorize embeddings) |
+| `vault_read` | Read full note content (from R2) |
+| `vault_list` | Filter by type, status, tag (from D1) |
+| `vault_graph` | Wikilink traversal — local or full vault (from D1) |
 | `vault_tags` | All tags with counts |
 | `vault_backlinks` | Reverse link lookup |
 | `vault_stats` | Vault metrics |
 
+**Obsidian CLI** for all writes (create, append, move, delete, property management).
+
 **Skill instructions** that teach the agent:
-- When to check the vault vs. write to it
-- Search strategy ladder (semantic → keyword → hybrid → graph)
+- Architecture: write locally via Obsidian CLI, read remotely via Worker MCP
+- Search strategy ladder (hybrid → semantic → keyword → graph)
 - Note classification (11 types with decision tree)
 - Frontmatter schema and tagging conventions
 - Wikilink patterns and output citation guidelines

@@ -77,19 +77,54 @@ obsidian vault="Prime Radiant" search query="<term>" format=json
 
 ## When to Use the Vault
 
-**Search the vault** when the user:
+This is a **personal knowledge vault — not a code repo.** It stores memory, not technical documentation.
+
+### The 6-Month Test
+
+Before saving anything, ask: **would the user search for this in 6 months?** If not, don't save it.
+
+### What belongs in the vault
+
+- People in their life (family, friends, colleagues, contacts)
+- Personal preferences, opinions, tastes
+- Habits and routines (workouts, weekly patterns, recurring activities)
+- Life areas (home, health, career, relationships)
+- Projects — the *what/why* and outcomes, not the *how*
+- Books, media, resources worth remembering
+- Travel plans, events, important dates
+- Decisions that affect their life trajectory
+- Experiences, reflections, insights
+
+### What does NOT belong (put in code repos/docs instead)
+
+- Technical implementation details
+- Bug fixes, error messages, troubleshooting steps
+- Code architecture or deployment configs
+- API rate limits, library quirks, build issues
+- Anything that belongs in a README or technical doc
+
+**Projects track goals and outcomes, not implementation.** "Launched the Eight Sleep integration" belongs. "Got 429 rate-limited by their API" does not.
+
+### Save behavior: silent vs. ask
+
+**Save silently** when the information is:
+- Stated directly and unambiguously by the user (e.g. "my sister's name is Amy", "I prefer window seats")
+- A clear preference, habit, or fact about a person in their life
+- An update to an existing note (e.g. new interaction with a known person)
+
+**Ask before saving** when:
+- You're inferring something the user didn't explicitly state
+- It's about work history, job details, family relationships, or locations
+- You're unsure which note type or existing note it belongs to
+- The information is ambiguous or could be misinterpreted
+
+**NEVER ASSUME.** Wrong information in the vault is worse than no information. If you're not 100% certain about a fact, **ask first.**
+
+### Search the vault when the user:
 - Asks about their preferences, history, or past decisions
 - Mentions a person, project, or topic that may have notes
 - Asks "what do I know about X?" or "remind me about Y"
 - Needs context from prior conversations or experiences
-
-**Write to the vault** when you learn:
-- Personal preferences, opinions, or tastes
-- Information about people in their life
-- Project updates, decisions, milestones
-- Concepts, ideas, or knowledge worth remembering
-- Experiences, reflections, or insights
-- Habits, routines, or recurring patterns
 
 ## Search Strategy
 
